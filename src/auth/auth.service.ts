@@ -1,23 +1,22 @@
 import { Injectable } from '@nestjs/common';
+import { RestaurantsService } from '../restaurants/restaurants.service';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service';
-import { Restaurant } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwtService: JwtService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly jwtService: JwtService,
+  ) {}
 
-  async validateRestaurant(email: string, password: string): Promise<Restaurant | null> {
-    const restaurant = await this.prisma.restaurant.findUnique({ where: { email } });
-    if (restaurant && await bcrypt.compare(password, restaurant.password)) {
-      return restaurant;
+  async login(loginDto: { email: string; password: string }) {
+    const restaurant = await this.restaurantsService.findByEmail(loginDto.email);
+    if (!restaurant || restaurant.password !== loginDto.password) {
+      throw new Error('Invalid credentials');
     }
-    return null;
-  }
-
-  async login(restaurant: Restaurant) {
     const payload = { email: restaurant.email, sub: restaurant.id };
-    return { access_token: this.jwtService.sign(payload) };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 }
